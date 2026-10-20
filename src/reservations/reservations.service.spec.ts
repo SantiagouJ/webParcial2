@@ -6,6 +6,7 @@ import { ReservationEntity } from './entities/reservation.entity';
 import { ReservationRulesService } from './reservation-rules.service';
 import { ReservationsService } from './reservations.service';
 import { describe, it, expect,beforeEach, jest } from '@jest/globals';
+import { concat } from 'rxjs';
 
 describe('ReservationsService', () => {
   let service: ReservationsService;
@@ -48,9 +49,21 @@ describe('ReservationsService', () => {
       room: { id: 1, name: 'Room A' },
     } as ReservationEntity;
     const savedReservation = { ...reservation, status: 'cancelled' } as ReservationEntity;
-
+    
+    reservationsRepositoryMock.findOne.mockResolvedValue(reservation)
+    reservationsRepositoryMock.save.mockResolvedValue(savedReservation)
+    
+    const result = await service.cancel(7)
     // TODO TEST 2: Arrange dependencies, call cancel(7), and check the required behavior.
-    throw new Error('TODO TEST 2: complete the successful cancellation test');
+    expect(reservationRulesServiceMock.ensureCanCancel)
+    .toHaveBeenCalledWith(reservation);
+    expect(reservationsRepositoryMock.save).toHaveBeenCalledWith(
+    expect.objectContaining({
+      id: 7,
+      status: 'cancelled',
+    })
+    );
+    expect(result).toEqual(savedReservation)
   });
 
   it('does not change or save a reservation when the rule rejects cancellation', async () => {
@@ -62,8 +75,10 @@ describe('ReservationsService', () => {
       room: { id: 2, name: 'Room B' },
     } as ReservationEntity;
 
+      reservationsRepositoryMock.findOne.mockResolvedValue(reservation)
+      reservationRulesServiceMock.ensureCanCancel.mockImplementation(()=>{throw new ConflictException()})
     // TODO TEST 3: Make the mock rule reject this ACTIVE reservation, as requested.
-    // Check the exception, the unchanged state, and the absence of a save() call.
-    throw new Error('TODO TEST 3: complete the rejected cancellation test');
+      await expect(service.cancel(9)).rejects.toBeInstanceOf(ConflictException);
+     expect(reservationsRepositoryMock.save).not.toHaveBeenCalled();
   });
 });
